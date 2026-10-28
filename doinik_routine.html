@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#12372a">
+<title>দৈনিক রুটিন</title>
+<style>
+:root{--bg:#f4f7f4;--card:#fff;--ink:#17231c;--muted:#64736a;--green:#176b4d;--line:#e1e9e2;--soft:#e8f4ec}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Noto Sans Bengali",sans-serif}
+header{background:#12372a;color:white;padding:25px 18px 22px;border-radius:0 0 24px 24px}
+h1{font-size:25px;margin:0 0 5px}header p{margin:0;color:#d1e4d7;font-size:14px}
+main{max-width:680px;margin:auto;padding:16px 14px 35px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:-2px}
+.stat,.panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:15px}
+.stat b{font-size:25px;display:block;color:var(--green)}.stat span{font-size:13px;color:var(--muted)}
+.progress{height:8px;background:#e5ece6;border-radius:9px;overflow:hidden;margin-top:10px}.bar{height:100%;width:0;background:#279568;transition:width .2s}
+h2{font-size:18px;margin:23px 2px 10px}
+form{display:flex;gap:8px;flex-wrap:wrap}.field{border:1px solid #d6e1d8;border-radius:11px;padding:12px;background:white;font:inherit;min-width:0;flex:1}
+input[type=time]{flex:0 0 125px}button{font:inherit;border:0;border-radius:11px;padding:11px 14px;background:var(--green);color:white;font-weight:650;cursor:pointer}
+.secondary{background:var(--soft);color:var(--green);border:1px solid #cfe4d5}
+.list{display:grid;gap:9px}.task{display:flex;gap:11px;align-items:center;background:white;border:1px solid var(--line);border-radius:13px;padding:12px}
+.task input{width:20px;height:20px;accent-color:var(--green);flex-shrink:0}.taskbody{flex:1;min-width:0}.taskname{font-weight:650;overflow-wrap:anywhere}.tasktime{font-size:12px;color:var(--muted);margin-top:2px}.done .taskname{text-decoration:line-through;color:#839087}
+.delete{background:transparent;color:#9a4c4c;padding:7px;font-size:18px}
+.row{display:flex;gap:8px;align-items:center;justify-content:space-between}.hint{font-size:12px;color:var(--muted);line-height:1.5;margin:9px 2px 0}
+.empty{text-align:center;color:var(--muted);padding:20px 8px;border:1px dashed #cbd8ce;border-radius:13px}
+footer{text-align:center;font-size:12px;color:var(--muted);padding:18px}
+@media(max-width:400px){input[type=time]{flex-basis:115px}.field{padding:11px}}
+</style>
+</head>
+<body>
+<header><h1>🌿 দৈনিক রুটিন</h1><p id="today"></p><p>একটি করে কাজ শেষ করো, দিনটা এগিয়ে নাও।</p></header>
+<main>
+<section class="stats">
+ <div class="stat"><b id="count">০/০</b><span>আজকের কাজ সম্পন্ন</span><div class="progress"><div class="bar" id="bar"></div></div></div>
+ <div class="stat"><b id="percent">০%</b><span>আজকের অগ্রগতি</span><div style="margin-top:10px;font-size:13px;color:var(--muted)" id="left">শুরু করা যাক!</div></div>
+</section>
+<h2>➕ নতুন কাজ যোগ করো</h2>
+<section class="panel">
+<form id="addform">
+ <input class="field" id="taskname" placeholder="যেমন: ইংরেজি পড়া" maxlength="100" required>
+ <input class="field" id="tasktime" type="time" aria-label="কাজের সময়">
+ <button type="submit">যোগ করো</button>
+</form>
+<p class="hint">সময় দেওয়া ঐচ্ছিক। কাজগুলো এই ফোনের ব্রাউজারেই সংরক্ষিত থাকবে।</p>
+</section>
+<div class="row"><h2>📋 আজকের তালিকা</h2><button class="secondary" id="notify">🔔 রিমাইন্ডার চালু</button></div>
+<div class="list" id="list"></div>
+<p class="hint">রিমাইন্ডার পেতে পেজটি খোলা রাখো এবং নোটিফিকেশনের অনুমতি দাও। ব্রাউজার বন্ধ থাকলে সময়মতো নোটিফিকেশন আসার নিশ্চয়তা নেই।</p>
+<footer>অফলাইন ব্যবহারের জন্য তৈরি · তথ্য এই ব্রাউজারে থাকে</footer>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const bn=n=>String(n).replace(/\d/g,d=>'০১২৩৪৫৬৭৮৯'[d]);
+const dayKey=()=>{let d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
+const storeKey='dailyRoutine_v1';
+let data={date:dayKey(),tasks:[]};
+try{let old=JSON.parse(localStorage.getItem(storeKey));if(old&&old.date===dayKey())data=old;}catch(e){}
+function save(){localStorage.setItem(storeKey,JSON.stringify(data));render()}
+function render(){
+ const d=new Date();$('today').textContent=d.toLocaleDateString('bn-BD',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+ let total=data.tasks.length,done=data.tasks.filter(t=>t.done).length,p=total?Math.round(done/total*100):0;
+ $('count').textContent=bn(done)+'/'+bn(total);$('percent').textContent=bn(p)+'%';$('bar').style.width=p+'%';
+ $('left').textContent=total===0?'কাজ যোগ করে শুরু করো':done===total?'সব কাজ শেষ! দারুণ 🎉':'আর '+bn(total-done)+'টি কাজ বাকি';
+ let sorted=[...data.tasks].sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
+ $('list').innerHTML='';
+ if(!sorted.length){$('list').innerHTML='<div class="empty">আজকের জন্য এখনো কোনো কাজ যোগ করা হয়নি।</div>';return}
+ sorted.forEach(t=>{
+  const el=document.createElement('div');el.className='task'+(t.done?' done':'');
+  const cb=document.createElement('input');cb.type='checkbox';cb.checked=t.done;cb.setAttribute('aria-label','কাজ সম্পন্ন');cb.onchange=()=>{t.done=cb.checked;save()};
+  const body=document.createElement('div');body.className='taskbody';
+  const name=document.createElement('div');name.className='taskname';name.textContent=t.name;body.append(name);
+  if(t.time){const time=document.createElement('div');time.className='tasktime';time.textContent='🕒 '+t.time;body.append(time)}
+  const del=document.createElement('button');del.className='delete';del.textContent='×';del.title='কাজ মুছুন';del.onclick=()=>{if(confirm('এই কাজটি মুছে ফেলবে?')){data.tasks=data.tasks.filter(x=>x.id!==t.id);save()}};
+  el.append(cb,body,del);$('list').append(el);
+ });
+}
+$('addform').onsubmit=e=>{e.preventDefault();const name=$('taskname').value.trim();if(!name)return;data.tasks.push({id:Date.now().toString(),name,time:$('tasktime').value,done:false,notified:false});$('taskname').value='';$('tasktime').value='';save()};
+$('notify').onclick=async()=>{
+ if(!('Notification'in window)){alert('এই ব্রাউজারে নোটিফিকেশন সমর্থিত নয়।');return}
+ try{let p=await Notification.requestPermission();if(p==='granted'){alert('অনুমতি দেওয়া হয়েছে। নির্ধারিত সময়ে মনে করিয়ে দেওয়ার জন্য পেজটি খোলা রাখো।');checkReminders()}else alert('নোটিফিকেশনের অনুমতি পাওয়া যায়নি।')}
+ catch(e){alert('এই ফাইল থেকে নোটিফিকেশন চালু করা যায়নি।')}
+};
+function checkReminders(){
+ if(!('Notification'in window)||Notification.permission!=='granted')return;
+ const now=new Date(),key=dayKey();
+ data.tasks.forEach(t=>{if(t.time&&!t.done&&!t.notified){let [h,m]=t.time.split(':').map(Number);if(now.getHours()===h&&now.getMinutes()===m){new Notification('দৈনিক রুটিন',{body:'এখন করার সময়: '+t.name});t.notified=true;localStorage.setItem(storeKey,JSON.stringify(data))}}});
+}
+render();setInterval(checkReminders,20000);
+</script>
+</body>
+</html>
